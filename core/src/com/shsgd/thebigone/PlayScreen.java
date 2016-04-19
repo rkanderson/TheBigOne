@@ -4,101 +4,132 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.maps.tiled.TiledMap;
+import com.badlogic.gdx.maps.tiled.TmxMapLoader;
+import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.Vector2;
-import com.badlogic.gdx.physics.box2d.Body;
-import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
-import com.badlogic.gdx.physics.box2d.Fixture;
-import com.badlogic.gdx.physics.box2d.FixtureDef;
-import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
+import com.shsgd.thebigone.Main;
+import com.shsgd.thebigone.PlayScreenInputProcessor;
+import com.shsgd.thebigone.Player;
+import com.shsgd.thebigone.Utils.C;
+
 
 /**
- * Created by ryananderson on 4/6/16.
+ * Created by ryananderson on 3/26/16.
  */
 public class PlayScreen implements Screen{
 
-    private static final int PPM = 64;
-
     private Main game;
-    private MyInputProcessor inputProcessor;
-    private SpriteBatch sb = new SpriteBatch();
+    private int myLevelIndex;
+    private OrthographicCamera gameCamera = new OrthographicCamera(), b2drCamera = new OrthographicCamera();
+    //game camera operates in pixels
+    // b2drCamera in meters
+    private Viewport b2drViewport, gameViewport;
+    private static float zoomFactor = 2.343f;
+    private Box2DDebugRenderer box2DDebugRenderer = new Box2DDebugRenderer();
     private ShapeRenderer sr = new ShapeRenderer();
-    private OrthographicCamera gameCamera, b2drCamera;
-    private Viewport gameViewport, b2drViewport;
+    private SpriteBatch sb = new SpriteBatch(), bgsb=new SpriteBatch();
+    private PlayScreenInputProcessor inputProcessor;
 
-    private World world;
-    private Box2DDebugRenderer box2DDebugRenderer;
+    //TmxMapLoader tmxMapLoader;
+    //TiledMap map;
+    //OrthogonalTiledMapRenderer mapRenderer;
+    //int[] bgLayers = {0, 1}, foregroundLayers = {2};
 
+
+    private World world; //Box2D world yay!
     private Player player;
     private Wall wall;
 
-    public PlayScreen(Main game) {
+    //input booleans
+    public boolean showb2drLines = false; //this gets true in PlayScreenInputProcessor
+
+
+    public PlayScreen(Main game, int levelIndex){
+        //@param levelIndex starts from zero; level1 == index 0
+
+        //System.out.println("A new play screen has been created.");
         this.game = game;
-        inputProcessor = new MyInputProcessor(this);
-        gameCamera = new OrthographicCamera();
-        b2drCamera = new OrthographicCamera();
-        gameViewport = new FitViewport(Main.V_WIDTH, Main.V_HEIGHT, gameCamera);
-        b2drViewport = new FitViewport(Main.V_WIDTH/PPM, Main.V_HEIGHT/PPM, b2drCamera);
-        world = new World(new Vector2(0,0), true); // a new box2d world with zero gravity! (this is an overhead rpg)
-        box2DDebugRenderer = new Box2DDebugRenderer();
+        myLevelIndex = levelIndex;
+        //gameCamera.setToOrtho(false, Main.V_WIDTH / zoomFactor, Main.V_HEIGHT / zoomFactor);
+        gameViewport = new FitViewport(Main.V_WIDTH / zoomFactor, Main.V_HEIGHT / zoomFactor, gameCamera);
+        //b2drCamera.setToOrtho(false, Main.V_WIDTH / zoomFactor / PPM, Main.V_HEIGHT / zoomFactor / PPM);
+        b2drViewport = new FitViewport(Main.V_WIDTH/zoomFactor/ C.PPM, Main.V_HEIGHT/zoomFactor/C.PPM, b2drCamera);
 
+        inputProcessor = new PlayScreenInputProcessor(this);
+
+        world = new World(new Vector2(0, 0), true);
+
+        //tmxMapLoader = new TmxMapLoader();
+        //map = tmxMapLoader.load("level" + levelIndex + ".tmx");
+        //System.out.println("Shifts: "+shifts);
+        //mapRenderer = new OrthogonalTiledMapRenderer(map);
+
+        //B2WorldCreator creator = new B2WorldCreator(this, world, map);
+        //player = creator.getPlayer();
         player = new Player(world, 0, 0);
-        wall = new Wall(world, 0, -2, 2, 0.5f);
-
+        wall = new Wall(world, 0, 2, 3, 1);
 
     }
 
     @Override
     public void render(float delta) {
+        //This render method will consist of 2 parts
+        //1) updating the game state (different method called from this method)
+        //2) rendering (drawing to screen)
 
-        //There are two parts of the render method:
-        //1) The UPDATING of the game properties (a different method, but called from the render method)
-        //2) the Actual RENDERING of the game onto the screen
 
-        //---PART I--- the Updating!
+        //---PART I--- The updating!
         handleInput(delta);
-        updateCameras(delta);
-        updateGame(delta);
+        update(delta);
+        updateCameraPosition(delta);
 
-        //---PART II--- the Rendering!
-        Gdx.gl.glClearColor(0, 0, 0, 1);
+        //---PART II--- The rendering!
+        //Clear the game screen with Black
+        Gdx.gl.glClearColor(0.1f, 0.1f, 0.1f, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+
+        //mapRenderer.setView(gameCamera);
+        //mapRenderer.render(bgLayers);
+
+        //render wall(s)
+        sr.setProjectionMatrix(gameCamera.combined);
         sr.begin(ShapeRenderer.ShapeType.Filled);
-        //sr.setColor(1, 1, 1, 1);
-        //sr.rect(0, 0, Main.V_WIDTH, Main.V_HEIGHT);
+        sr.setColor(0, 0, 1, 1);
+        sr.rect((wall.getBody().getPosition().x-wall.getWidth()/2)*C.PPM, (wall.getBody().getPosition().y-wall.getHeight()/2)*C.PPM,
+                wall.getWidth()*C.PPM, wall.getHeight()*C.PPM);
         sr.end();
 
-        box2DDebugRenderer.render(world, b2drCamera.combined);
-        //gameCamera.combined.scl(1 / PPM);
+        //render player
+        sb.setProjectionMatrix(gameCamera.combined);
+        sb.begin();
+        sb.draw(player.getTexture(), (player.getBody().getPosition().x-player.getFixtureWidth()/2) * C.PPM,
+                (player.getBody().getPosition().y-player.getFixtureHeight()/2)*C.PPM, player.getImageWidth()*C.PPM, player.getImageHeight()*C.PPM);
+        sb.end();
+
+        //mapRenderer.render(foregroundLayers);
+        if(showb2drLines)box2DDebugRenderer.render(world, b2drCamera.combined);
+
+
 
     }
 
-    public void updateGame(float delta){
+    public void update(float delta){
+
         player.update(delta);
-        world.step(1 / 60f, 6, 2);
-    }
-
-    public void updateCameras(float delta){
-        //b2drCamera.position.set(player.body.getPosition().x,player.body.getPosition().y,0);
-        //gameCamera.position.set(player.body.getPosition().x*PPM,player.body.getPosition().y*PPM,0);
-        b2drCamera.position.set(0,0,0);
-        gameCamera.position.set(0 * PPM, 0 * PPM, 0);
+        world.step(1 / 60f, 8, 3);    // 60 FPS
     }
 
     public void handleInput(float delta){
 
-    }
-
-    @Override
-    public void resize(int width, int height) {
-        gameViewport.update(width, height);
-        b2drViewport.update(width, height);
     }
 
     public void moveKeyDown(int direction){
@@ -109,10 +140,47 @@ public class PlayScreen implements Screen{
         player.moveKeyReleased(direction);
     }
 
+
+    public void updateCameraPosition(float delta){
+        //REMEMBER b2drCamera uses meters and gameCamera uses pixels
+        //in this method, I will update b2drCamera's position in meters and gameCamera
+        //will copy it's position in pixels
+        b2drCamera.position.set(0, 0, 0);
+        b2drCamera.update();
+
+        gameCamera.position.set(b2drCamera.position.x * C.PPM, b2drCamera.position.y * C.PPM, 0);
+        gameCamera.update();
+    }
+
+    public void restart(){
+        //System.out.println("Level restarted");
+        game.setScreen(new PlayScreen(game, myLevelIndex));
+    }
+
+
+
+
+
+
+
+    @Override
+    public void resize(int width, int height) {
+        //gameViewport.update((int)(width / zoomFactor), (int)(height / zoomFactor));
+        //b2drViewport.update((int) (width / zoomFactor /PPM), (int) (height /zoomFactor/ PPM));
+
+        gameViewport.update(width, height);
+        b2drViewport.update(width, height);
+        //gameCamera.setToOrtho(false, Main.V_WIDTH / zoomFactor, Main.V_HEIGHT / zoomFactor);
+        //b2drCamera.setToOrtho(false, Main.V_WIDTH / zoomFactor / PPM, Main.V_HEIGHT / zoomFactor / PPM);
+
+    }
+
+
     @Override
     public void show() {
 
     }
+
 
     @Override
     public void pause() {
@@ -131,8 +199,17 @@ public class PlayScreen implements Screen{
 
     @Override
     public void dispose() {
+        world.dispose();
+        box2DDebugRenderer.dispose();
         sb.dispose();
-        sr.dispose();
+        bgsb.dispose();
+        //map.dispose();
+        //mapRenderer.dispose();
+        player.dispose();
+
 
     }
+
+
+
 }

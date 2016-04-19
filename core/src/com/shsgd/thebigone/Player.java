@@ -1,5 +1,6 @@
 package com.shsgd.thebigone;
 
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.BodyDef;
 import com.badlogic.gdx.physics.box2d.Fixture;
@@ -11,11 +12,15 @@ import com.badlogic.gdx.physics.box2d.World;
  * Created by ryananderson on 4/6/16.
  */
 public class Player {
-    float WIDTH = 1, HEIGHT = 1; //meters
+    //float WIDTH = 1, HEIGHT = 1; //meters
+    float fixtureWidth = 1, fixtureHeight = 0.5f,
+        imageWidth = 1, imageHeight = 1;
     float MOVE_SPEED = 5;
     World world;
     Body body;
     Fixture mainFixture;
+
+    Texture texture;
 
     boolean moveDown[] = {false, false};
     boolean moveRight[] = {false, false};
@@ -31,12 +36,14 @@ public class Player {
         body = world.createBody(bodyDef);
 
         FixtureDef fixtureDef = new FixtureDef();
-        PolygonShape box = new PolygonShape(); box.setAsBox(WIDTH/2, HEIGHT/2);
+        PolygonShape box = new PolygonShape(); box.setAsBox(fixtureWidth/2, fixtureHeight/2);
         fixtureDef.shape = box;
         fixtureDef.friction = 0;
         fixtureDef.restitution = 0;
         fixtureDef.density = 1.0f;
         mainFixture = body.createFixture(fixtureDef);
+
+        texture = new Texture("character.png");
     }
 
     public void update(float delta){
@@ -83,5 +90,32 @@ public class Player {
             moveLeft[0] = false; moveLeft[1] =false;
             if(moveRight[1]) moveRight[0] = true;
         }
+    }
+    public void dispose(){
+        texture.dispose();
+    }
+
+    public Texture getTexture() {
+        return texture;
+    }
+
+    public Body getBody() {
+        return body;
+    }
+
+    public float getFixtureWidth() {
+        return fixtureWidth;
+    }
+
+    public float getFixtureHeight() {
+        return fixtureHeight;
+    }
+
+    public float getImageWidth() {
+        return imageWidth;
+    }
+
+    public float getImageHeight() {
+        return imageHeight;
     }
 }

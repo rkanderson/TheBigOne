@@ -7,10 +7,10 @@ import com.badlogic.gdx.InputProcessor;
 /**
  * Created by ryananderson on 4/6/16.
  */
-public class MyInputProcessor implements InputProcessor {
+public class PlayScreenInputProcessor implements InputProcessor {
     //An input processor specifically made to interact with PlayScreen
     private PlayScreen playScreen;
-    public MyInputProcessor(PlayScreen playScreen){
+    public PlayScreenInputProcessor(PlayScreen playScreen){
         Gdx.input.setInputProcessor(this);
         this.playScreen = playScreen;
     }
@@ -21,6 +21,7 @@ public class MyInputProcessor implements InputProcessor {
         else if(keycode == Input.Keys.RIGHT) playScreen.moveKeyDown(1);
         else if(keycode == Input.Keys.UP) playScreen.moveKeyDown(2);
         else if(keycode == Input.Keys.LEFT) playScreen.moveKeyDown(3);
+        else if(keycode == Input.Keys.TAB) playScreen.showb2drLines = true;
         return false;
     }
 
@@ -30,6 +31,8 @@ public class MyInputProcessor implements InputProcessor {
         else if(keycode == Input.Keys.RIGHT) playScreen.moveKeyUp(1);
         else if(keycode == Input.Keys.UP) playScreen.moveKeyUp(2);
         else if(keycode == Input.Keys.LEFT) playScreen.moveKeyUp(3);
+        else if(keycode == Input.Keys.TAB) playScreen.showb2drLines = false;
+
         return false;
     }
 
